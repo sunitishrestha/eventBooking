@@ -1,40 +1,69 @@
-// Load environment variables
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import pkg from "pg";
+import bcrypt from "bcrypt";
 
-const express = require("express");
-const cors = require("cors");
-const { Pool } = require("pg");
+dotenv.config();
+const { Pool } = pkg;
 
-// Create Express app
 const app = express();
-const port = process.env.PORT || 3000;
-
-// Middleware
 app.use(cors());
-app.use(express.json()); // to parse JSON request bodies
+app.use(express.json());
 
-// Set up PostgreSQL pool connection using connection string from .env
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Simple test route
+// Test DB
 app.get("/", (req, res) => {
-  res.send("Hello from Express server!");
+  res.send("Backend is running!");
 });
 
-// Example route to query database
-app.get("/users", async (req, res) => {
+// Register API
+app.post("/register", async (req, res) => {
+  const { fullname, email, number, password, role } = req.body;
+
   try {
-    const result = await pool.query("SELECT * FROM users"); // adjust table name
-    res.json(result.rows);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const query = `INSERT INTO users(fullname,email,number,password,role)
+                   VALUES($1,$2,$3,$4,$5) RETURNING *`;
+
+    const values = [fullname, email, number, hashedPassword, role];
+
+    const result = await pool.query(query, values);
+
+    res.json({ message: "User registered successfully", user: result.rows[0] });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Database query error");
+    console.log(err);
+    res.status(500).json({ error: "Registration failed" });
   }
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Login API
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE email=$1", [
+      email,
+    ]);
+
+    if (result.rows.length === 0)
+      return res.status(400).json({ error: "User not found" });
+
+    const user = result.rows[0];
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) return res.status(400).json({ error: "Incorrect password" });
+
+    res.json({ message: "Login successful", user });
+  } catch (err) {
+    res.status(500).json({ error: "Login failed" });
+  }
 });
+
+app.listen(process.env.PORT, () =>
+  console.log("Server running on port " + process.env.PORT)
+);
