@@ -1,15 +1,18 @@
 import React, { useState } from "react";
 import axios from "axios";
 import "./Auth.css";
+import { useNavigate } from "react-router-dom";
 
 function Register() {
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({
-    fullName: "",
+    full_name: "",
     email: "",
-    number: "",
+    phone_number: "",
     password: "",
     confirmPassword: "",
-    role: "user",
+    role: "student",
   });
 
   const handleChange = (e) => {
@@ -28,96 +31,28 @@ function Register() {
     }
 
     try {
-      const response = await axios.post("http://localhost:5000/register", {
-        fullName: form.fullName,
-        email: form.email,
-        number: form.number,
-        password: form.password,
-        role: form.role,
-      });
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/register",
+        {
+          full_name: form.full_name,
+          email: form.email,
+          phone_number: form.phone_number,
+          password: form.password,
+          role: form.role,
+        }
+      );
 
-      alert("Registration Sucessful");
+      alert("Registration Successful");
       console.log(response.data);
+      navigate("/login");
     } catch (error) {
-      console.error("error");
-      alert("Registration Failed");
+      console.error(
+        "Registration Error:",
+        error.response?.data || error.message
+      );
+      alert(error.response?.data?.error || "Registration Failed");
     }
   };
-
-  //   return (
-  //     <div className="auth-container">
-  //       <div className="auth-box">
-  //         <h2>Register Individual Account!</h2>
-
-  //         <form onSubmit={handleSubmit}>
-  //           <label>Your fullName*</label>
-  //           <input
-  //             type="text"
-  //             name="fullName"
-  //             placeholder="Enter your full Name."
-  //             value={form.fullName}
-  //             onChange={handleChange}
-  //             required
-  //           />
-  //           <label>Your Email*</label>
-  //           <input
-  //             type="email"
-  //             name="email"
-  //             placeholder="Enter your email contain @gmail.com"
-  //             value={form.email}
-  //             onChange={handleChange}
-  //             required
-  //           />
-
-  //           <label>Your Phone Number*</label>
-  //           <input
-  //             type="text"
-  //             name="number"
-  //             placeholder="Enter your phone number."
-  //             value={form.number}
-  //             onChange={handleChange}
-  //             required
-  //           />
-
-  //           <label>Create Password* </label>
-  //           <input
-  //             type="password"
-  //             name="password"
-  //             placeholder="Create a strong password."
-  //             value={form.password}
-  //             onChange={handleChange}
-  //             required
-  //           />
-
-  //           <label>ConfirmPassword*</label>
-  //           <input
-  //             type="password"
-  //             name="confirmPassword"
-  //             placeholder="Confirm your password."
-  //             value={form.confirmPassword}
-  //             onChange={handleChange}
-  //             required
-  //           />
-
-  //           <label>Select Role*</label>
-  //           <select name="role" value={form.role} onChange={handleChange}>
-  //             <option value="student">Student</option>
-  //             <option value="organizer">Organizer</option>
-  //             <option value="admin">Admin</option>
-  //           </select>
-
-  //           <button className="auth-btn" type="submit">
-  //             Register Account
-  //           </button>
-  //         </form>
-
-  //         <p>
-  //           Already have an account? <a href="/login">Click Here to Login</a>
-  //         </p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="auth-container">
@@ -134,9 +69,9 @@ function Register() {
           <label>Your fullName*</label>
           <input
             type="text"
-            name="fullName"
+            name="full_name"
             placeholder="Enter your full name"
-            value={form.fullName}
+            value={form.full_name}
             onChange={handleChange}
             required
           />
@@ -152,9 +87,9 @@ function Register() {
           <label>Your Phone Number*</label>
           <input
             type="text"
-            name="number"
+            name="phone_number"
             placeholder="Enter your phone number"
-            value={form.number}
+            value={form.phone_number}
             onChange={handleChange}
             required
           />
@@ -177,16 +112,12 @@ function Register() {
             required
           />
           <label>Select Role*</label>
-          <select
-            name="role"
-            value={form.role}
-            onChange={handleChange}
-            required
-          >
+          <select name="role" value={form.role} onChange={handleChange}>
             <option value="student">Student</option>
             <option value="organizer">Organizer</option>
             <option value="admin">Admin</option>
           </select>
+
           <div className="checkbox-row">
             <input type="checkbox" required />
             <span>I agree to terms & conditions</span>

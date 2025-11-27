@@ -21,12 +21,16 @@ function Login() {
     e.preventDefault();
     try {
       const response = await axios.post(
-        "[http://localhost:5000/login](http://localhost:5000/login)",
+        "http://localhost:5000/api/auth/login",
         {
           email: form.email,
           password: form.password,
         }
       );
+
+      // Store the token
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
 
       alert("Login Successful");
       console.log(response.data);
