@@ -13,44 +13,7 @@ import {
 } from "lucide-react";
 
 export default function EventOrganizerDashboard() {
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      name: "Summer Music Festival 2025",
-      date: "2025-12-15",
-      time: "18:00",
-      venue: "Central Park Arena",
-      description: "A spectacular evening of live music featuring top artists",
-      acousticNight: true,
-      stalls: true,
-      stallCount: 25,
-      capacity: 5000,
-    },
-    {
-      id: 2,
-      name: "Tech Innovation Summit",
-      date: "2025-12-20",
-      time: "09:00",
-      venue: "Convention Center",
-      description: "Discover the latest in technology and innovation",
-      acousticNight: false,
-      stalls: true,
-      stallCount: 15,
-      capacity: 1000,
-    },
-    {
-      id: 3,
-      name: "Food & Wine Festival",
-      date: "2025-12-25",
-      time: "12:00",
-      venue: "Downtown Square",
-      description: "Culinary delights from world-renowned chefs",
-      acousticNight: true,
-      stalls: true,
-      stallCount: 40,
-      capacity: 3000,
-    },
-  ]);
+  const [events, setEvents] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -75,21 +38,33 @@ export default function EventOrganizerDashboard() {
   ];
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % bannerImages.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [bannerImages.length]);
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/events");
+        const data = await response.json();
+        if (response.ok) {
+          setEvents(data.events); // or data if your backend returns array directly
+        } else {
+          console.error("Failed to fetch events:", data.error);
+        }
+      } catch (error) {
+        console.error("Network error:", error);
+      }
+    };
+
+    fetchEvents();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
+
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (
       !formData.name ||
       !formData.date ||
@@ -101,16 +76,43 @@ export default function EventOrganizerDashboard() {
       return;
     }
 
-    if (editingEvent) {
-      setEvents((prev) =>
-        prev.map((ev) =>
-          ev.id === editingEvent.id ? { ...formData, id: editingEvent.id } : ev
-        )
-      );
-    } else {
-      setEvents((prev) => [...prev, { ...formData, id: Date.now() }]);
+    try {
+      const response = await fetch("http://localhost:5000/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          date: formData.date,
+          time: formData.time,
+          venue: formData.venue,
+          description: formData.description,
+          acoustic_night: formData.acousticNight,
+          stalls: formData.stalls,
+          stall_count: formData.stallCount,
+          capacity: Number(formData.capacity),
+          organizer: formData.organizer,
+          category: formData.category,
+          image: formData.image,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Backend error:", data);
+        alert("Failed: " + data.error);
+        return;
+      }
+
+      alert(" Event saved to database");
+      setEvents((prev) => [...prev, data.event]);
+      resetForm();
+    } catch (error) {
+      console.error("Network error:", error);
+      alert(" Server not reachable");
     }
-    resetForm();
   };
 
   const resetForm = () => {
@@ -131,13 +133,52 @@ export default function EventOrganizerDashboard() {
 
   const handleEdit = (event) => {
     setEditingEvent(event);
-    setFormData(event);
+    setFormData({
+      name: event.name || "",
+      date: event.date || "",
+      time: event.time || "",
+      venue: event.venue || "",
+      description: event.description || "",
+      acousticNight: event.acoustic_night || false,
+      stalls: event.stalls || false,
+      stallCount: event.stall_count || 0,
+      capacity: event.capacity || "",
+      organizer: event.organizer || "",
+      category: event.category || "",
+      image: event.image || "",
+    });
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this event?")) {
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/events/${id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert("Failed to delete event: " + data.error);
+        return;
+      }
+
+      alert("Event deleted successfully");
       setEvents(events.filter((ev) => ev.id !== id));
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Server not reachable");
+    }
+  };
+
+  const handleLogout = () => {
+    const confirmed = window.confirm("Do you really want to logout?");
+    if (confirmed) {
+      // Clear session or token if any
+      localStorage.removeItem("user"); // example
+      // Redirect to login page
+      window.location.href = "/login";
     }
   };
 
@@ -519,6 +560,79 @@ export default function EventOrganizerDashboard() {
                   className="w-full px-5 py-4 border-2 border-gray-300 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all outline-none font-semibold text-lg"
                   placeholder="Maximum attendees"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black text-gray-700 mb-2 uppercase tracking-wide">
+                  Organizer *
+                </label>
+                <input
+                  type="text"
+                  name="organizer"
+                  value={formData.organizer}
+                  onChange={handleInputChange}
+                  className="w-full px-5 py-4 border-2 border-gray-300 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all outline-none font-semibold text-lg"
+                  placeholder="Event organizer"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black text-gray-700 mb-2 uppercase tracking-wide">
+                  Category *
+                </label>
+                <input
+                  type="text"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className="w-full px-5 py-4 border-2 border-gray-300 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all outline-none font-semibold text-lg"
+                  placeholder="Event category"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black text-gray-700 mb-2 uppercase tracking-wide">
+                  Event Image
+                </label>
+                <input
+                  type="file"
+                  name="image"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = () =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          image: reader.result,
+                        }));
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="w-full px-5 py-4 border-2 border-gray-300 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all outline-none font-semibold text-lg"
+                />
+              </div>
+              <div className="absolute top-4 right-4 flex items-center gap-4">
+                {/* Create Event Button */}
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="group relative px-6 py-3 bg-white text-indigo-600 rounded-full font-bold shadow-xl hover:shadow-indigo-500/50 transition-all duration-300 hover:scale-110 flex items-center gap-2"
+                >
+                  <Plus
+                    size={20}
+                    className="group-hover:rotate-180 transition-transform duration-500"
+                  />
+                  Create Event
+                </button>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="px-6 py-3 bg-red-500 text-white rounded-full font-bold shadow-lg hover:bg-red-600 transition-colors"
+                >
+                  Logout
+                </button>
               </div>
 
               <button
